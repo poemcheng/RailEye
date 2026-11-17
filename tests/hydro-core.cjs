@@ -1,0 +1,42 @@
+const assert=require('node:assert/strict'),C=require('../hydro-core.js');let count=0;
+function test(name,fn){fn();count++;console.log('PASS',name);}
+const T=Date.parse('2026-11-01T00:00:00Z'),known=new Date(T-24*C.H).toISOString();
+function rain(values){return values.map((x,i)=>({t:T+(i+1)*C.H,rain:x,available_at:known}));}
+function segment(x,opts={}){return C.segmentRain(rain(x),{asOf:T+1000*C.H,dryHours:6,...opts});}
+test('naive soil timestamp rejected',()=>assert.equal(C.instant('2026-11-01T00:00:00'),null));
+test('offset timestamp accepted',()=>assert.equal(C.instant('2026-11-01T08:00:00+08:00'),T));
+test('zero rainfall valid but no event',()=>assert.equal(segment([0,0,0]).length,0));
+test('confirmed event boundaries',()=>{let e=segment([0,0,0,0,0,0,2,3,0,0,0,0,0,0])[0];assert.equal(e.status,'closed');assert.equal(e.left_censored,false);assert.equal(e.duration_hours,2);assert.equal(e.rain_mm,5);});
+test('first wet hour left censored',()=>assert.equal(segment([1,2,0])[0].left_censored,true));
+test('ongoing event remains right censored',()=>assert.equal(segment([0,0,0,0,0,0,1])[0].right_censored,true));
+test('internal dry period counted in duration',()=>{const e=segment([1,0,.1,2])[0];assert.equal(e.duration_hours,4);assert.equal(e.rain_mm,3.1);});
+test('trailing dry is not event duration',()=>assert.equal(segment([1,0,0])[0].duration_hours,1));
+test('missing rainfall breaks event',()=>{const e=segment([1,null,2]);assert.equal(e.length,2);assert.equal(e[0].status,'interrupted');assert.equal(e[1].left_censored,true);});
+test('negative rainfall not dry evidence',()=>assert.equal(segment([1,-1,2])[0].status,'interrupted'));
+test('gaps break event',()=>{const a=rain([1,2,3]);a.splice(1,1);assert.equal(C.segmentRain(a,{asOf:T+8*C.H})[0].status,'interrupted');});
+test('duplicate hours rejected',()=>{const a=rain([1,2]);assert.throws(()=>C.segmentRain([a[0],a[0]],{asOf:T+8*C.H}));});
+test('future rainfall excluded',()=>assert.equal(C.segmentRain(rain([1,100]),{asOf:T+C.H})[0].rain_mm,1));
+test('not-yet-available data excluded',()=>{const a=rain([1,2]);a[1].available_at=new Date(T+10*C.H).toISOString();assert.equal(C.segmentRain(a,{asOf:T+3*C.H})[0].status,'interrupted');});
+test('unknown availability not assumed',()=>{const a=rain([1]);a[0].available_at=null;assert.equal(C.segmentRain(a,{asOf:T+3*C.H}).length,0);});
+test('two dry-separated events',()=>assert.equal(segment([2,0,0,0,0,0,0,3]).length,2));
+test('event labels remain unknown',()=>assert.equal(segment([2])[0].label,null));
+test('invalid dry period rejected',()=>assert.throws(()=>segment([1],{dryHours:0})));
+test('zero wet threshold rejected',()=>assert.throws(()=>segment([1],{wetThreshold:0})));
+const src={status:'ok',fetched_at:new Date(T+6*C.DAY).toISOString(),provider:'fixture_only',grid:{id:'test'},rows:[{valid_at:new Date(T).toISOString(),first_seen_at:new Date(T+5*C.DAY).toISOString(),values:{s1:.2,s2:.3,s3:.4,s4:null}}]};
+test('download now does not imply old availability',()=>assert.equal(C.latestSoil(src,T+4*C.DAY),null));
+test('known soil becomes available',()=>assert.equal(C.latestSoil(src,T+6*C.DAY).values.s2,.3));
+test('failed refresh no healthy inference',()=>assert.equal(C.latestSoil({...src,status:'stale'},T+6*C.DAY),null));
+test('lag is relative to event onset',()=>assert.equal(C.laggedSoil(src,new Date(T+5*C.DAY).toISOString(),5,T+6*C.DAY).row.values.s2,.3));
+test('missing exact lag not interpolated',()=>assert.equal(C.laggedSoil(src,new Date(T+5*C.DAY).toISOString(),4,T+6*C.DAY).row,null));
+test('invalid lag rejected',()=>assert.equal(C.laggedSoil(src,T,16).status,'invalid_request'));
+test('before first seen blocked',()=>assert.equal(C.laggedSoil(src,T+5*C.DAY,5,T+4*C.DAY).row,null));
+const ev={status:'closed',left_censored:false,duration_hours:4,rain_mm:20};const sample={row:src.rows[0]};
+test('features use natural logarithms',()=>assert.deepEqual(C.featurePacket(ev,sample,src).log_features_DES2,[Math.log(4),Math.log(20),Math.log(.3)]));
+test('partial event blocked from endpoint model',()=>assert.equal(C.featurePacket({...ev,status:'ongoing'},sample,src).log_features_DES2,null));
+test('unknown onset blocked',()=>assert.equal(C.featurePacket({...ev,left_censored:true},sample,src).log_features_DES2,null));
+test('zero soil never epsilon imputed',()=>assert.equal(C.featurePacket(ev,{row:{values:{s2:0}}},src).log_features_DES2,null));
+test('feature computation never predicts hazard',()=>assert.equal(C.featurePacket(ev,sample,src).slope_probability,null));
+test('no railway safety command',()=>assert.equal(C.featurePacket(ev,sample,src).safety_action,null));
+test('fresh fetch does not override old snapshot',()=>assert.equal(C.latestSoil(src,T+8*C.DAY),null));
+test('paper test and all not confused',()=>{assert.equal(C.PAPER.all_test[1],.70);assert.equal(C.PAPER.all_all[1],.72);});
+console.log(JSON.stringify({checks:count,passed:count,failed:0}));
