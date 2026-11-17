@@ -7,6 +7,11 @@ class SoilTests(unittest.TestCase):
   self.d={'latitude':24.2,'longitude':121.7,'hourly':{'time':[1793836800]},'hourly_units':{}}
   for v in s.VARS:self.d['hourly'][v]=[.3];self.d['hourly_units'][v]='m³/m³'
  def norm(self,d=None):return s.normalize_openmeteo(d or self.d,self.r,self.t)
+ def test_grid_selection_and_offset(self):
+  d=self.norm();self.assertEqual(d['grid']['selection'],'land_preference_not_exact_asset');self.assertGreater(d['grid']['offset_km'],0)
+ def test_all_null_rejected(self):
+  for v in s.VARS:self.d['hourly'][v]=[None]
+  with self.assertRaisesRegex(ValueError,'NO_VALID_SOIL_ROWS'):self.norm()
  def test_three_real_layers(self):self.assertEqual(self.norm()['rows'][0]['values']['s2'],.3)
  def test_fourth_never_remapped(self):self.assertIsNone(self.norm()['rows'][0]['values']['s4'])
  def test_publication_unknown(self):self.assertIsNone(self.norm()['rows'][0]['available_at'])

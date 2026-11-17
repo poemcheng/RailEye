@@ -33,6 +33,11 @@ def request(url):
    if n:raise
    time.sleep(1)
 
+def grid_distance_km(lat,lon,ref):
+ a,b=math.radians(lat),math.radians(ref['lat'])
+ x=math.sin((a-b)/2)**2+math.cos(a)*math.cos(b)*math.sin(math.radians(lon-ref['lon'])/2)**2
+ return 6371*2*math.asin(min(1,math.sqrt(x)))
+
 def normalize_openmeteo(d,region,seen,old=None):
  h=d.get('hourly',{});times=h.get('time');units=d.get('hourly_units',{})
  if not isinstance(times,list) or not times:raise ValueError('SOIL_SCHEMA')
@@ -40,7 +45,7 @@ def normalize_openmeteo(d,region,seen,old=None):
  if not all(str(units.get(v)).replace('³','3') in {'m3/m3','m³/m³'} for v in VARS):raise ValueError('SOIL_UNITS')
  lat,lon=d.get('latitude'),d.get('longitude')
  if not finite(lat) or not finite(lon) or not 20<lat<27 or not 118<lon<124:raise ValueError('GRID_INVALID')
- grid={'id':f'era5_land:{lat:.4f}:{lon:.4f}','lat':lat,'lon':lon,'requested_lat':region['lat'],'requested_lon':region['lon'],'scope':'regional_grid_not_verified_slope'}
+ grid={'id':f'era5_land:{lat:.4f}:{lon:.4f}','lat':lat,'lon':lon,'requested_lat':region['lat'],'requested_lon':region['lon'],'scope':'regional_grid_not_verified_slope','selection':'land_preference_not_exact_asset','offset_km':round(grid_distance_km(lat,lon,region),3)}
  prior={(r['valid_at'],r['value_hash']):r['first_seen_at'] for r in (old or {}).get('rows',[]) if (old or {}).get('grid',{}).get('id')==grid['id']}
  rows=[];unique=set();observed=stamp(seen)
  for i,t in enumerate(times):
@@ -63,17 +68,19 @@ def collect(region):
   except (ValueError,OSError):pass
  if old:
   try:
-   age=(datetime.now(UTC)-stamp(old['fetched_at'])).total_seconds()/3600
-   if 0<=age<20:return {**old,'cache_reused':True,'checked_at':iso()}
+   age=(datetime.now(UTC)-stamp(old['fetched_at'])).total_seconds()
+   if 0<=age<20*3600 and old.get('grid',{}).get('selection')=='land_preference_not_exact_asset':return {**old,'cache_reused':True,'checked_at':iso()}
   except (ValueError,KeyError):pass
  now=datetime.now(UTC);end=(now-timedelta(days=5)).date();start=end-timedelta(days=30)
- url='https://archive-api.open-meteo.com/v1/archive?'+urlencode({'latitude':region['lat'],'longitude':region['lon'],'start_date':str(start),'end_date':str(end),'hourly':','.join(VARS),'models':'era5_land','timezone':'UTC','timeformat':'unixtime','cell_selection':'nearest','elevation':'nan'})
+ url='https://archive-api.open-meteo.com/v1/archive?'+urlencode({'latitude':region['lat'],'longitude':region['lon'],'start_date':str(start),'end_date':str(end),'hourly':','.join(VARS),'models':'era5_land','timezone':'UTC','timeformat':'unixtime','cell_selection':'land','elevation':'nan'})
  try:
   d=request(url);seen=iso();data=normalize_openmeteo(d,region,seen,old);data.update(source_url=url,cache_reused=False,checked_at=seen)
   save(p,data);return data
  except Exception as e:
-  if old:return {**old,'status':'stale','checked_at':iso(),'error':type(e).__name__,'cache_reused':True}
-  return {'status':'unavailable','provider':'ERA5-Land via Open-Meteo','source_url':url,'checked_at':iso(),'fetched_at':None,'error':type(e).__name__,'rows':[],'depths_cm':DEPTHS,'layer4_status':'withheld_depth_mismatch','unit':'m3/m3'}
+  known={'SOIL_SCHEMA','SOIL_LENGTH','SOIL_UNITS','GRID_INVALID','BAD_TIME','DUPLICATE_SOIL_TIME','FUTURE_SOIL','NO_VALID_SOIL_ROWS','RESPONSE_TOO_LARGE'}
+  reason=str(e) if isinstance(e,ValueError) and str(e) in known else type(e).__name__
+  if old:return {**old,'status':'stale','checked_at':iso(),'error':reason,'cache_reused':True}
+  return {'status':'unavailable','provider':'ERA5-Land via Open-Meteo','source_url':url,'checked_at':iso(),'fetched_at':None,'error':reason,'rows':[],'depths_cm':DEPTHS,'layer4_status':'withheld_depth_mismatch','unit':'m3/m3'}
 
 def validate_cds(d):
  if d.get('product')!='reanalysis-era5-land' or d.get('unit')!='m3/m3' or d.get('depths_cm')!=DEPTHS:raise ValueError('CDS_CONTRACT')
@@ -105,7 +112,7 @@ def main():
    values=h.get('precipitation',[]);x=values[i] if i<len(values) else None
    rain.append({'t':t*1000,'rain':float(x) if finite(x) and x>=0 else None,'available_at':w.get('fetched_at')})
   regions.append({**r,'soil':s,'rain':{'status':w.get('status','missing'),'kind':'weather_model_estimate_not_station_observation','source':w.get('source'),'fetched_at':w.get('fetched_at'),'ttl_seconds':10800,'rows':rain},'local_model':{'status':'not_trained','slope_probability':None}})
-  print('SOIL_RESULT',r['id'],s['status'],len(s.get('rows',[])),s.get('latest_valid_at'),flush=True)
+  print('SOIL_RESULT',r['id'],s['status'],len(s.get('rows',[])),s.get('latest_valid_at'),s.get('error'),flush=True)
  obj={'schema_version':'soil-1.0','generated_at':iso(),'regions':regions,'doi':'10.5194/nhess-25-4907-2025','method':'lagged_features_not_paper_model_replication','direct_cds_status':'requires_authorized_CDS_download_or_normalized_import','retrospective_availability':'not_reconstructed; first-seen preserved only for cached identical grid/value versions','source_attribution':'Copernicus Climate Change Service ERA5-Land distributed via Open-Meteo (CC BY 4.0); confirm service terms for commercial use'}
  save(OUT/'latest.json',obj)
  archive=ROOT/'evidence-archive';archive.mkdir(exist_ok=True)
