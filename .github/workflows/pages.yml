@@ -1,4 +1,4 @@
-name: Deploy RailEye with public environment and soil evidence
+name: Deploy RailEye with terrain and environmental evidence
 on:
   push:
     branches: [main]
@@ -26,12 +26,16 @@ jobs:
           persist-credentials: false
       - name: Install geospatial dependency
         run: python -m pip install --disable-pip-version-check pyproj==3.7.2
-      - name: Validate original and delayed-soil logic
+      - name: Validate monitoring and terrain logic
         run: |
           node --check app.js
           node --check live.js
           node --check hydro-core.js
           node --check hydro-ui.js
+          node --check terrain-core.js
+          node --check terrain-ui.js
+          node tests/terrain-core.cjs
+          python scripts/compare_terrain.py --check
           node tests/smoke.cjs
           node tests/live-core.cjs
           node tests/hydro-core.cjs
@@ -72,12 +76,14 @@ jobs:
           if-no-files-found: error
       - name: Stage public site only
         run: |
-          mkdir -p _site/data/live _site/data/soil
-          cp index.html styles.css app.js live.css live-core.js live.js hydro.css hydro-core.js hydro-ui.js .nojekyll _site/
+          mkdir -p _site/data/live _site/data/soil _site/data/terrain
+          cp index.html styles.css app.js live.css live-core.js live.js hydro.css hydro-core.js hydro-ui.js terrain.css terrain-core.js terrain-ui.js .nojekyll _site/
           cp data/live/*.json _site/data/live/
           cp data/soil/latest.json _site/data/soil/
+          cp data/terrain/*.json _site/data/terrain/
           python scripts/prepare_hydro_site.py
-          printf '{"version":"0.5.0","commit":"%s"}\n' "$GITHUB_SHA" > _site/build-info.json
+          printf '{"version":"0.6.0","commit":"%s"}\n' "$GITHUB_SHA" > _site/build-info.json
+          python scripts/check_terrain_release.py
       - name: Configure Pages
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b
       - name: Upload public site
@@ -87,7 +93,8 @@ jobs:
       - name: Deploy Pages
         id: deployment
         uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e
-      - name: Verify public release and actual soil evidence
+      - name: Verify published terrain and environmental evidence
         run: |
+          python scripts/check_terrain_release.py --public
           python scripts/check_live_release.py
           python scripts/check_soil_release.py

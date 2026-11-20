@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "method": {
+    "pairing": "MOI 40 m 格心投影至 GEM-15 原生平面座標，配對涵蓋該點的最近格心。限兩來源皆有值；不跨缺值格搜尋。",
+    "pearsonR": "共同有效點的兩來源高程 Pearson 相關係數。",
+    "centeredMadM": "每對差值 d = MOI − GEM。以公尺計算 median(|d − median(d)|)，未作常態尺度換算。",
+    "eligibility": "配對少於兩格，或任一來源的配對高程全部相同時，兩個地勢比較統計量均留空。",
+    "scope": "用於比較共同覆蓋區域的相對地勢；空間相鄰格有自相關，兩來源時期、解析度、垂直基準不同。"
+  },
+  "regions": {
+    "yilan": {
+      "moiGrid": "yilan-moitw",
+      "gemGrid": "yilan-gem15",
+      "moiSha256": "ab2df2354df3fdd7ffef42ae811d2690dc91464ef2c86625584630f8af1452d6",
+      "gemSha256": "1c837a99582ae78565e5d9f2ae9f1bbc1ed8552bdf42986009c232fc8bfd29bc",
+      "pairedCells": 906,
+      "pearsonR": 0.993319,
+      "centeredMadM": 6.532
+    },
+    "neiwan": {
+      "moiGrid": "neiwan-moitw",
+      "gemGrid": "neiwan-gem15",
+      "moiSha256": "c47b4a115889a4a3c69151694d011a19015338eeb8b3cb7a53c3d6513f6ba811",
+      "gemSha256": "b8779e689a2bf16c811f3f253a292d03553b9d942b0f89413f2fbbeb8454656a",
+      "pairedCells": 924,
+      "pearsonR": 0.996181,
+      "centeredMadM": 5.764
+    },
+    "southlink": {
+      "moiGrid": "southlink-moitw",
+      "gemGrid": "southlink-gem15",
+      "moiSha256": "26175a38e5337a66b7a66c77b09c7796bea6999dc8d8c575ef87e2d93d7bc4e7",
+      "gemSha256": "e382e2863339a6c610da499c7f2ac7d0e4d9d20aa567d50b2ccaa0c72436a60b",
+      "pairedCells": 913,
+      "pearsonR": 0.985909,
+      "centeredMadM": 0.825
+    },
+    "northlink": {
+      "moiGrid": "northlink-moitw",
+      "gemGrid": "northlink-gem15",
+      "moiSha256": "c24abc80881cf7acafa15cabd38fadcd0d304aa126fca2a6d618815f5f61b804",
+      "gemSha256": "26241b1b1009e1594bfc1db9c88f01e1e5146cbab5a1a2ca318c8e4e0eec74ae",
+      "pairedCells": 0,
+      "pearsonR": null,
+      "centeredMadM": null
+    }
+  }
+}

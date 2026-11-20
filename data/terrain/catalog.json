@@ -1,0 +1,50 @@
+[
+  {
+    "id": "yilan-gem15",
+    "region": "yilan",
+    "label": "Google GEM-15 · 15 m",
+    "file": "yilan-gem15.json"
+  },
+  {
+    "id": "yilan-moitw",
+    "region": "yilan",
+    "label": "內政部 DTM 轉製 · 40 m",
+    "file": "yilan-moitw.json"
+  },
+  {
+    "id": "neiwan-gem15",
+    "region": "neiwan",
+    "label": "Google GEM-15 · 15 m",
+    "file": "neiwan-gem15.json"
+  },
+  {
+    "id": "neiwan-moitw",
+    "region": "neiwan",
+    "label": "內政部 DTM 轉製 · 40 m",
+    "file": "neiwan-moitw.json"
+  },
+  {
+    "id": "southlink-gem15",
+    "region": "southlink",
+    "label": "Google GEM-15 · 15 m",
+    "file": "southlink-gem15.json"
+  },
+  {
+    "id": "southlink-moitw",
+    "region": "southlink",
+    "label": "內政部 DTM 轉製 · 40 m",
+    "file": "southlink-moitw.json"
+  },
+  {
+    "id": "northlink-gem15",
+    "region": "northlink",
+    "label": "Google GEM-15 · 15 m（全幅缺值）",
+    "file": "northlink-gem15.json"
+  },
+  {
+    "id": "northlink-moitw",
+    "region": "northlink",
+    "label": "內政部 DTM 轉製 · 40 m（部分陸域）",
+    "file": "northlink-moitw.json"
+  }
+]

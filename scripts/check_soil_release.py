@@ -9,7 +9,7 @@ for attempt in range(8):
     if r.status!=200:raise ValueError('HTTP_STATUS')
     return r.read(6_000_000).decode('utf-8')
   build=json.loads(read('build-info.json'))
-  if build.get('commit')!=os.environ.get('GITHUB_SHA') or build.get('version')!='0.5.0':raise ValueError('OLD_DEPLOYMENT')
+  if build.get('commit')!=os.environ.get('GITHUB_SHA') or build.get('version')!='0.6.0':raise ValueError('OLD_DEPLOYMENT')
   if 'hydro-ui.js?v=0.5.0' not in read('index.html'):raise ValueError('HYDRO_MODULE_MISSING')
   read('hydro-core.js');read('hydro-ui.js');data=json.loads(read('data/soil/latest.json'))
   if data.get('schema_version')!='soil-1.0' or len(data.get('regions',[]))!=4:raise ValueError('SOIL_SCHEMA')
